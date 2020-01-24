@@ -11,6 +11,6 @@ public interface FiltersRequests {
     @GET("vr/trending")
     @Headers({ "Content-Type: application/x-www-form-urlencoded; charset=UTF-8", "Accept: application/json" })
     Call<ListResponse<TrendingFilters>> getTrendingFilters(
-            @Header("Authorization") String token
+            @Header("x-app-token") String token
     );
 }

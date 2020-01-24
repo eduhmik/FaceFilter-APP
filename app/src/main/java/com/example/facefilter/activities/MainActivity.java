@@ -11,14 +11,27 @@ import android.graphics.BitmapFactory;
 import android.hardware.Camera;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
 import com.example.facefilter.R;
+import com.example.facefilter.adapters.FiltersAdapter;
+import com.example.facefilter.application.Config;
 import com.example.facefilter.base.BaseActivity;
 import com.example.facefilter.fragments.CustomArFragment;
 import com.example.facefilter.interfaces.OnFragmentInteractionListener;
+import com.example.facefilter.model.Auth;
+import com.example.facefilter.model.TrendingFilters;
+import com.example.facefilter.retrofit.AuthRequests;
+import com.example.facefilter.retrofit.FiltersRequests;
+import com.example.facefilter.retrofit.ListResponse;
+import com.example.facefilter.retrofit.ObjectResponse;
+import com.example.facefilter.retrofit.ServiceGenerator;
+import com.example.facefilter.sharedprefs.SharedPrefs;
+import com.example.facefilter.tools.SweetAlertDialog;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.ar.core.AugmentedFace;
@@ -28,28 +41,39 @@ import com.google.ar.sceneform.rendering.Renderable;
 import com.google.ar.sceneform.rendering.Texture;
 import com.google.ar.sceneform.ux.AugmentedFaceNode;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 import static androidx.constraintlayout.widget.Constraints.TAG;
 
 public class MainActivity extends BaseActivity implements NavigationView.OnNavigationItemSelectedListener, OnFragmentInteractionListener {
 
+    SharedPrefs sharedPrefs;
     @BindView(R.id.save_button)
     FloatingActionButton saveButton;
+    @BindView(R.id.recyclerView)
+    RecyclerView recyclerView;
+    private FiltersAdapter filtersAdapter;
+    private ArrayList<TrendingFilters> trendingFiltersArrayList = new ArrayList<>();
     private ModelRenderable modelRenderable;
     private Texture texture;
+    private String token;
     public static Bitmap bitmap;
     private boolean isAdded = false;
-    Camera camera1;
-    private Camera.PictureCallback myPictureCallback_JPG;
     CustomArFragment customArFragment = CustomArFragment.newInstance();
     public final int REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS = 1;
     private String CAMERA_PERMISSION = Manifest.permission.CAMERA;
@@ -65,6 +89,8 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
+        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false);
+        recyclerView.setLayoutManager(layoutManager);
         customArFragment = (CustomArFragment) getSupportFragmentManager().findFragmentById(R.id.arFragment);
         isStoragePermissionGranted();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -72,9 +98,21 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         } else {
             // Open your camera here.
         }
+        AuthenticateAPI(Config.API_KEY);
         renderFilters();
     }
 
+    @Override
+    protected void onPostCreate(@Nullable Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                fetchTrendingFilters(token);
+            }
+        }, 10000);
+    }
 
     private Camera.PictureCallback getPictureCallback() {
         Camera.PictureCallback picture = new Camera.PictureCallback() {
@@ -210,6 +248,76 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         return true;
     }
 
+    public void AuthenticateAPI(String apiKey) {
+        showSweetDialog("Authenticating", "Authenticating. Please wait...", SweetAlertDialog.PROGRESS_TYPE);
+        AuthRequests service = ServiceGenerator.createService(AuthRequests.class);
+        Call<ObjectResponse<Auth>> call = service.authenticateAPI(apiKey);
+        call.enqueue(new Callback<ObjectResponse<Auth>>() {
+            @Override
+            public void onResponse(Call<ObjectResponse<Auth>> call, Response<ObjectResponse<Auth>> response) {
+                _sweetAlertDialog.dismissWithAnimation();
+                Log.e("Password reset", gson.toJson(response.body()));
+                if (response.body() != null && response.isSuccessful()) {
+                    if (TextUtils.equals(response.body().getSuccess(), "true")) {
+                        token = response.body().getToken();
+                        showSweetDialog("Successful!!!", "Authentication Successful", SweetAlertDialog.SUCCESS_TYPE);
+                        _sweetAlertDialog.dismissWithAnimation();
+
+                    } else if (TextUtils.equals(response.body().getSuccess(), "false")) {
+                        showToast(response.body().getMessage());
+                        showSweetDialog("Authentication Failed!", response.body().getMessage(), SweetAlertDialog.ERROR_TYPE, "Got it!",new SweetAlertDialog.OnSweetClickListener() {
+                            @Override
+                            public void onClick(SweetAlertDialog sweetAlertDialog) {
+                                sweetAlertDialog.dismissWithAnimation();
+                            }
+                        });
+                    }
+                } else {
+                    showToast("No response from server");
+                }
+            }
+            @Override
+            public void onFailure(Call<ObjectResponse<Auth>> call, Throwable t) {
+                Log.e("", t.getMessage());
+                _sweetAlertDialog.dismissWithAnimation();
+            }
+        });
+    }
+
+    private void fetchTrendingFilters(String token) {
+        FiltersRequests service = ServiceGenerator.createService(FiltersRequests.class);
+        Call<ListResponse<TrendingFilters>> call = service.getTrendingFilters(token);
+        call.enqueue(new Callback<ListResponse<TrendingFilters>>() {
+            @Override
+            public void onResponse(Call<ListResponse<TrendingFilters>> call, Response<ListResponse<TrendingFilters>> response) {
+                try {
+                    if (response != null) {
+                        Log.e("Filters list", gson.toJson(response.body()));
+                        if (TextUtils.equals(response.body().getSuccess(), "true")) {
+                            ArrayList<TrendingFilters> responze = response.body().getMedia();
+                            trendingFiltersArrayList.clear();
+                            trendingFiltersArrayList.addAll(responze);
+                            filtersAdapter = new FiltersAdapter(getBaseContext(), trendingFiltersArrayList);
+                            recyclerView.setAdapter(filtersAdapter);
+                        } else {
+                            showToast("Please try again");
+                        }
+                    } else {
+                        showToast("No response from server");
+                    }
+                } catch (Exception e) {
+                    trendingFiltersArrayList.clear();
+                    filtersAdapter.notifyDataSetChanged();
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ListResponse<TrendingFilters>> call, Throwable t) {
+                Log.e("tag", t.getMessage());
+            }
+        });
+    }
 
 
     @Override

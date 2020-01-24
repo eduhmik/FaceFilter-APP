@@ -3,6 +3,11 @@ package com.example.facefilter.model;
 public class TrendingFilters {
     private String id;
     private String title;
+    private String embedUrl;
+
+    public String getEmbedUrl() {
+        return embedUrl;
+    }
 
     public String getId() {
         return id;

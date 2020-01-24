@@ -10,7 +10,7 @@ import retrofit2.http.POST;
 
 public interface AuthRequests {
     @FormUrlEncoded
-    @POST("nearby/sites")
+    @POST("app/authenticate")
     @Headers({ "Content-Type: application/x-www-form-urlencoded; charset=UTF-8", "Accept: application/json" })
     Call<ObjectResponse<Auth>> authenticateAPI(
             @Field("apiKey") String apiKey

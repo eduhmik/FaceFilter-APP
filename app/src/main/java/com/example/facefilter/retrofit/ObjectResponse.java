@@ -3,6 +3,7 @@ package com.example.facefilter.retrofit;
 public class ObjectResponse<T> {
     private String success;
     private String message;
+    private String token;
 
 
     public String getMessage() {
@@ -11,5 +12,9 @@ public class ObjectResponse<T> {
 
     public String getSuccess() {
         return success;
+    }
+
+    public String getToken() {
+        return token;
     }
 }
