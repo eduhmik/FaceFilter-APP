@@ -3,19 +3,19 @@ package com.example.facefilter.retrofit;
 import java.util.ArrayList;
 
 public class ListResponse<T> {
-    public String status, message;
+    public String success, message;
 
-    public ArrayList<T> data;
+    public ArrayList<T> media;
 
-    public String getStatus() {
-        return status;
+    public String getSuccess() {
+        return success;
     }
 
     public String getMessage() {
         return message;
     }
 
-    public ArrayList<T> getData() {
-        return data;
+    public ArrayList<T> getMedia() {
+        return media;
     }
 }

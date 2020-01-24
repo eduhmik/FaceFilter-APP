@@ -1,3 +1,8 @@
 <resources>
-    <string name="app_name">FaceFilter</string>
+    <string name="app_name">Face Filter</string>
+    <string name="connection_status">Connected to: %s</string>
+    <string name="connection_speed">Speed: %s</string>
+
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
 </resources>
