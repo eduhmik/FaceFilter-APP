@@ -5,7 +5,7 @@ public class Config {
     public static final String TOPIC_GLOBAL = "global";
 
     // api key
-    public static final String API_KEY = "e068bdcb7ac19227931103307f9667ac";
+    public static final String API_KEY = "9693d870249585da60c3d36f16227eef";
 
     // broadcast receiver intent filters
     public static final String REGISTRATION_COMPLETE = "registrationComplete";
